@@ -1,25 +1,25 @@
 using UnityEngine;
 
-/*
- * 마름모 형태의 타일구조에서 중앙상단의 원점을 기준으로
- * 오른쪽이 x축, 왼쪽을 y축으로 정의
- */
+/// <summary>
+/// Core system for managing isometric tile-based spatial logic.
+/// Handles coordinate conversion between tile space and world space,
+/// enabling consistent object placement and grid-based interactions.
+/// </summary>
 
 public class TileSystem : MonoBehaviour
 {
-    //타일 크기 (마름모의 가로 대각선, 세로 대각선)
+    //Size of a single isometric tile (width and height of the diamond shape).
     public static Vector2 tileSize = new Vector2(2.56f, 1.28f);
-    //맵 크기 (타일 수)
+    //Total size of the tile map in tile units.
     public static Vector2Int mapSize = new Vector2Int(60, 60);
-    //(0, 0) 타일 위치
+    //World position of the origin tile (0,0).
     public static Vector2 tileZeroPos = new Vector2(0, 23.4f);
 
-    //디버그 표시
     [Header("DEBUG")]
     public bool drawDebug = false;
     public Color drawColor = Color.white;
 
-    /// <summary> 타일좌표를 월드좌표로 변환 (pivot 기준) </summary>
+    /// <summary> Converts tile coordinates to world position using a given pivot. </summary>
     public static Vector2 TilexyToPos(Vector2Int tilexy, Vector2 pivot)
     {
         Vector2 pos;
@@ -28,10 +28,14 @@ public class TileSystem : MonoBehaviour
 
         return pos;
     }
-    /// <summary> 타일좌표를 월드좌표로 변환 (원점타일 기준) </summary>
+    /// <summary> Converts tile coordinates to world position using a fixed pivot. </summary>
     public static Vector2 TilexyToPos(Vector2Int tilexy) => TilexyToPos(tilexy, tileZeroPos);
 
-    /// <summary> 월드좌표를 타일좌표로 변환 </summary>
+    /// <summary>
+    /// Converts world position to tile coordinates in an isometric grid.
+    /// This method resolves ambiguity caused by diamond-shaped tiles by
+    /// determining the correct tile through grid subdivision and boundary checks.
+    /// </summary>
     public static Vector2Int PosToTilexy(Vector2 pos)
     {
         Vector2 gridSize = tileSize / 2;
@@ -79,7 +83,7 @@ public class TileSystem : MonoBehaviour
         return tilexy;
     }
 
-    /// <summary> 타일의 맵 포함 여부 </summary>
+    /// <summary> Checks whether a tile area is within map bounds. </summary>
     public static bool IsTilesInMap(int tile_x, int tile_y, int tile_w, int tile_h)
     {
         return tile_x >= 0 && tile_x + tile_w <= mapSize.x && tile_y >= 0 && tile_y + tile_h <= mapSize.y;

@@ -3,34 +3,47 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
+/// <summary>
+/// Represents an object placed on a tile-based grid.
+/// This class abstracts tile-related properties such as position and size,
+/// and provides a unified way to convert between tile space and world space.
+/// </summary>
+
 public class TileObject : MonoBehaviour
 {
     [Header("Tile Setting")]
     public Vector2Int size;
     public Vector2Int pos;
-    public Transform pivot;
+    public Transform pivot; //Reference point used to align the object to the tile grid
 
     [Header("Tile DEBUG")]
-    public bool drawWorldTile = false;      //월드(TileSystem) 기준 타일 그리기
-    public bool drawLocalTile = false;      //로컬(GameObject) 기준 타일 그리기
+    public bool drawWorldTile = false;
+    public bool drawLocalTile = false;
 
     [HideInInspector] public bool isFliped = false;
 
-    /// <summary> 오브젝트 위치설정 </summary>
+    /// <summary> Sets the object's world position based on the given tile coordinates. </summary>
     public void SetTilexy(Vector2Int tilexy)
     {
         Vector2 pivot = GetPivotLocalPos();
         transform.position = TileSystem.TilexyToPos(tilexy) - pivot;
         pos = tilexy;
     }
-    /// <summary> 오브젝트 위치설정 (현재 타일좌표) </summary>
+    /// <summary> Repositions the object using its current tile coordinates. </summary>
     public void SetTilexy() => SetTilexy(pos);
-    /// <summary> 오브젝트 위치설정 (현재 월드좌표) </summary>
+    /// <summary> 
+    /// Updates the object's tile position based on its current world position,
+    /// then snaps it back to the grid.
+    /// </summary>
     public void SetTileHere() => SetTilexy(TileSystem.PosToTilexy(transform.position));
-    /// <summary> 오브젝트 타일좌표 설정 </summary>
+    /// <summary> Updates the internal tile position without applying any transform changes. </summary>
     public void UpdatePos(Vector2Int tilexy) => pos = tilexy;
 
-    /// <summary> 오브젝트 Flip </summary>
+    /// <summary> 
+    /// Flips the object horizontally by inverting its local scale.
+    /// Also swaps tile size (width/height) to maintain correct grid occupancy, 
+    /// and updates the flip state.
+    /// </summary>
     public virtual void FlipObject()
     {
         Vector3 sc = transform.localScale;
@@ -41,12 +54,12 @@ public class TileObject : MonoBehaviour
         isFliped = !isFliped;
     }
 
-    /// <summary> pivot 로컬좌표 계산 </summary>
+    /// <summary> Returns the pivot position in local space, adjusted by the object's scale. </summary>
     public Vector2 GetPivotLocalPos()
     {
         return Vector3.Scale(pivot.localPosition, transform.localScale);
     }
-    /// <summary> tail 타일좌표 계산 </summary>
+    /// <summary> Returns the bottom-right (max) tile coordinate occupied by this object. </summary>
     public Vector2Int GetTailTilexy()
     {
         return pos + size - Vector2Int.one;
@@ -75,7 +88,6 @@ public class TileObject : MonoBehaviour
             DrawLocalTile(0, 0);
         }
     }
-
     void DrawLocalTile(int tile_x, int tile_y)
     {
         Vector2 tilePos = TileSystem.TilexyToPos(new Vector2Int(tile_x, tile_y), pivot.position);

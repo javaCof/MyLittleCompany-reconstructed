@@ -3,15 +3,22 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
+/// <summary>
+/// Base node representing an element in the render order dependency graph.
+/// Each node defines a spatial footprint (position + size) on the tile grid,
+/// and maintains relationships with other nodes based on tile-space ordering rules.
+/// </summary>
 public abstract class OrderNode
 {
-    public int order = 0;
-    public int level = 0;
-    public int range = 1;
+    public int order = 0;       // Final sorting order value applied to renderer
+    public int level = 0;       // Depth in dependency graph (used for ordering)
+    public int range = 1;       // Spacing between sorting orders to prevent rendering conflicts
     public OrderNode prev = null;
     public List<OrderNode> nexts = new();
 
+    /// <summary> Minimum tile coordinate occupied by this node. </summary>
     public Vector2Int head { get { return GetPos(); } }
+    /// <summary> Maximum tile coordinate occupied by this node. </summary>
     public Vector2Int tail { get { return GetPos() + GetSize() - Vector2Int.one; } }
 
     int orderIdx = 0;
@@ -19,12 +26,18 @@ public abstract class OrderNode
     public void SetOrder() => SetOrder(order);
     public void SetLevel() => SetLevel(level);
 
+    /// <summary> Propagates level (depth) through child nodes. </summary>
     public void SetLevel(int level)
     {
         this.level = level;
         foreach (var next in nexts)
             next.SetLevel(level + 1);
     }
+    /// <summary>
+    /// Returns a unique order value within the node's range.
+    /// This allows multiple renderers within the same node
+    /// to avoid z-fighting by slightly offsetting their sorting order.
+    /// </summary>
     public int GetRangeOrder()
     {
         if (orderIdx == range) orderIdx = 0;
@@ -35,6 +48,13 @@ public abstract class OrderNode
     public abstract Vector2Int GetSize();
     public abstract void SetOrder(int order);
 }
+
+/// <summary>
+/// A lightweight node representing a single tile position.
+/// Used as a dynamic ordering anchor for moving entities,
+/// helping maintain correct render order during traversal.
+/// Also serves as the root node.
+/// </summary>
 public class PointOrder : OrderNode
 {
     public Vector2Int pos;
@@ -49,6 +69,9 @@ public class PointOrder : OrderNode
     {
         return Vector2Int.one;
     }
+    /// <summary>
+    /// Assigns order and propagates it to child nodes, offset by range to maintain separation.
+    /// </summary>
     public override void SetOrder(int order)
     {
         this.order = order;
@@ -56,6 +79,12 @@ public class PointOrder : OrderNode
             next.SetOrder(order + range);
     }
 }
+
+/// <summary>
+/// Node representing a TileObject with a Renderer.
+/// Applies calculated sorting order directly to the renderer,
+/// and optionally triggers callbacks when order changes.
+/// </summary>
 public class ObjectOrder : OrderNode
 {
     public UnityAction onOrder = null;
@@ -71,6 +100,12 @@ public class ObjectOrder : OrderNode
     {
         return tileObject.size;
     }
+    /// <summary>
+    /// Applies sorting order to the associated renderer,
+    /// then propagates order to child nodes.
+    /// Also invokes callback for additional behaviors
+    /// dependent on order changes.
+    /// </summary>
     public override void SetOrder(int order)
     {
         this.order = order;
@@ -85,6 +120,12 @@ public class ObjectOrder : OrderNode
             next.SetOrder(order + range);
     }
 }
+
+/// <summary>
+/// Manages a collection of OrderNodes and builds ordering relationships.
+/// Nodes are organized based on tile-space spatial relationships,
+/// forming a dependency graph that determines relative front/back order.
+/// </summary>
 public class OrderTree
 {
     public OrderNode root;
@@ -96,6 +137,16 @@ public class OrderTree
         nodes.Add(root);
     }
 
+    /// <summary>
+    /// Inserts a node into the order tree based on spatial comparison.
+    /// The node is attached to the closest valid parent,
+    /// and may reparent existing nodes if necessary to maintain correct ordering.
+    ///
+    /// After insertion:
+    /// - Levels are recalculated
+    /// - Orders are reassigned
+    /// - Node list is sorted by level
+    /// </summary>
     public void AddNode(OrderNode node)
     {
         int pIdx = nodes.FindLastIndex((n) => CompareOrder(node, n) == 1);
@@ -121,6 +172,11 @@ public class OrderTree
         pnode.SetOrder();
         nodes.Sort((a, b) => a.level.CompareTo(b.level));
     }
+
+    /// <summary>
+    /// Removes a node from the tree and reassigns its children.
+    /// Child nodes are reinserted to preserve correct ordering relationships.
+    /// </summary>
     public void RemoveNode(OrderNode node)
     {
         if (node == null) return;
@@ -142,6 +198,14 @@ public class OrderTree
         nodes.Sort((a, b) => a.level.CompareTo(b.level));
     }
 
+    /// <summary>
+    /// Compares two nodes based on their tile-space bounding boxes.
+    ///
+    /// Returns:
+    ///  1  ¡æ nodeA should be rendered after nodeB
+    /// -1  ¡æ nodeA should be rendered before nodeB
+    ///  0  ¡æ no strict ordering (overlapping, containment, or ambiguous case)
+    /// </summary>
     static int CompareOrder(OrderNode nodeA, OrderNode nodeB)
     {
         if ((nodeA.head.x > nodeB.tail.x || nodeA.head.y > nodeB.tail.y) &&
@@ -154,11 +218,21 @@ public class OrderTree
     }
 }
 
+/// <summary>
+/// MonoBehaviour that connects a TileObject to the OrderTree system.
+///
+/// Responsible for:
+/// - Creating and managing an ObjectOrder node
+/// - Registering/unregistering the node to the OrderTree
+/// - Updating render order when the object's position changes
+///
+/// Acts as the bridge between Unity components and the ordering system.
+/// </summary>
 [RequireComponent(typeof(TileObject))]
 public class TileOrder : MonoBehaviour
 {
-    public int orderRange = 1;
-    public Renderer otherRenderer;
+    public int orderRange = 1;          // Range used to separate sortingOrder values
+    public Renderer otherRenderer;      // Optional renderer override
 
     public int order { get { return node.order; } }
 
