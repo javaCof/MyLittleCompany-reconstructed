@@ -202,9 +202,9 @@ public class OrderTree
     /// Compares two nodes based on their tile-space bounding boxes.
     ///
     /// Returns:
-    ///  1  ¡æ nodeA should be rendered after nodeB
-    /// -1  ¡æ nodeA should be rendered before nodeB
-    ///  0  ¡æ no strict ordering (overlapping, containment, or ambiguous case)
+    ///  1  : nodeA should be rendered after nodeB
+    /// -1  : nodeA should be rendered before nodeB
+    ///  0  : no strict ordering (overlapping, containment, or ambiguous case)
     /// </summary>
     static int CompareOrder(OrderNode nodeA, OrderNode nodeB)
     {
